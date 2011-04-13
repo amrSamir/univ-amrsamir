@@ -24,7 +24,7 @@ public class ImageHelper {
 
 			// get pixel by pixel
 			int[] pixel = new int[1];
-			int[] buffer = new int[1];
+			int[] buffer = new int[3];
 
 			// declaring the size of arrays
 			original = new int[image_raster.getHeight()][image_raster

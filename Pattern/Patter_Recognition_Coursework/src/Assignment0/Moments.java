@@ -5,7 +5,6 @@ import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 
 import Helper.ImageHelper;
-import Helper.MathHelper;
 
 /*
  * Class to calculate the moments of b/w images

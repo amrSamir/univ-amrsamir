@@ -1,9 +1,9 @@
 package Assignment1;
 
-import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.Scanner;
 
+import Classifier.Classifier;
+import Classifier.MinimumDistanceClassifier;
 import Helper.ImageHelper;
 
 /*
@@ -108,63 +108,39 @@ public class ChainCode {
 	public static void main(String[] args) throws FileNotFoundException {
 
 		// Training Part
-
-		// ChainCode cc = new ChainCode();
-		// PrintWriter pw = new PrintWriter(new
-		// File("Files/Assignment1/train.txt"));
-		// for (int num = 0; num < 10; ++num) {
-		// double [] tot_fv = new double[8];
-		// for (int ind = 1; ind <= 3; ind++) {
-		// cc.img = ImageHelper
-		// .getBWImage("Files/Assignment1/training data/" + num
-		// + ind + ".bmp");
-		// // System.out.println("Files/Assignment1/training data/" + num
-		// // + ind + ".bmp");
-		// // for (int i = 0; i < cc.img.length; i++) {
-		// // for (int j = 0; j < cc.img[i].length; j++) {
-		// // System.out.print(cc.img[i][j] + " ");
-		// // }
-		// // System.out.println();
-		// // }
-		// double[] fv = ChainCode.normalize(cc.getFV());
-		// for (int i = 0; i < fv.length; i++) {
-		// tot_fv[i] += fv[i];
-		// }
-		// }
-		// System.out.println("Successfuly calculated fv of " + num);
-		// for (int i = 0; i < tot_fv.length; i++) {
-		// tot_fv[i] /= 3.0;
-		// pw.print(tot_fv[i] + " ");
-		// }
-		// pw.println();
-		// }
-		// pw.close();
+		// train();
 
 		// Classification part
-		Scanner sc = new Scanner(new File("Files/Assignment1/train.txt"));
-		double[][] all_fv = new double[10][8];
-		for (int i = 0; i < 10; i++) {
-			for (int j = 0; j < 8; j++) {
-				all_fv[i][j] = sc.nextDouble();
-			}
-		}
+		classify();
+	}
+
+	public static void classify() throws FileNotFoundException {
+		Classifier minD = new MinimumDistanceClassifier();
+		minD.readClassifier("Files/Assignment1/train_test2.txt");
 
 		ChainCode cc = new ChainCode();
 		cc.img = ImageHelper.getBWImage("Files/Assignment1/unknown4.bmp");
 		double[] normlized_fv = ChainCode.normalize(cc.getFV());
 
-		double minD = 1e9, minI = -1;
-		for (int i = 0; i < 10; i++) {
-			double error = 0;
-			for (int j = 0; j < 8; j++) {
-				error += Math.pow(all_fv[i][j] - normlized_fv[j], 2);
-			}
-			System.err.println("Error " + i + " = " + error);
-			if ( error < minD ) {
-				minD = error;
-				minI = i;
+		String bestLabel = minD.classify(normlized_fv);
+		System.out.println("The closest number is " + bestLabel);
+	}
+
+	public static void train() throws FileNotFoundException {
+		ChainCode cc = new ChainCode();
+		double[][] input = new double[30][8];
+		String[] output = new String[30];
+		Classifier minD = new MinimumDistanceClassifier();
+		for (int num = 0; num < 10; ++num) {
+			for (int ind = 1; ind <= 3; ind++) {
+				cc.img = ImageHelper
+						.getBWImage("Files/Assignment1/training data/" + num
+								+ ind + ".bmp");
+				input[num * 3 + ind - 1] = ChainCode.normalize(cc.getFV());
+				output[num * 3 + ind - 1] = num + "";
 			}
 		}
-		System.out.println("The closest number is " + minI + " with error " + minD);
+		minD.trainClassifier(input, output);
+		minD.writeClassifier("Files/Assignment1/train_test2.txt");
 	}
 }

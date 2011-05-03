@@ -9,6 +9,8 @@ import java.util.Arrays;
 import java.util.Scanner;
 
 import Assignment0.Moments;
+import Classifier.Classifier;
+import Classifier.MinimumSumSquareErrorClassifier;
 import Helper.ImageHelper;
 import Helper.MyMatrix;
 import Jama.LUDecomposition;
@@ -183,48 +185,20 @@ public class EnhancedChainCode {
 		EnhancedChainCode cc = new EnhancedChainCode(2, 4);
 		cc.img = ImageHelper.getBWImage("Files/Assignment2/unknown4.bmp");
 		double[] fv = EnhancedChainCode.normalize(cc.getFVs());
-
-		Scanner sc = new Scanner(new File("Files/Assignment2/train.txt"));
-		int nCol = sc.nextInt();
-		ArrayList<Integer> cols = new ArrayList<Integer>();
-		for (int i = 0; i < nCol; i++) {
-			cols.add(sc.nextInt());
-		}
-		double[] nfv = new double[nCol];
-		int ind = 0;
-		for (int i = 0; i < fv.length; i++) {
-			if (cols.contains(i))
-				nfv[ind++] = fv[i];
-		}
-		double best = -1e9;
-		int besti = -1;
-		for (int num = 0; num < 10; ++num) {
-			int label = sc.nextInt();
-			double val = 0;
-			for (int i = 0; i < nfv.length; i++) {
-				double wi = sc.nextDouble();
-				val += wi * nfv[i];
-			}
-			val += sc.nextDouble();
-			if( val > best ) {
-				best = val;
-				besti = num;
-			}
-//			if (val > 0)
-//				System.out.println("Label: " + label + " SAME");
-//			else
-//				System.out.println("Label: " + label + " NOT SAME");
-		}
-		System.out.println("BEST " + besti);
-		sc.close();
+		Classifier minSum = new MinimumSumSquareErrorClassifier();
+		minSum.readClassifier("Files/Assignment2/train_test.txt");
+		
+		String bestL = minSum.classify(fv);
+		System.out.println("BEST " + bestL);
 	}
 
 	public static void Training() throws FileNotFoundException {
 		EnhancedChainCode cc = new EnhancedChainCode(2, 4);
 		// Output file
-		PrintWriter pw = new PrintWriter(
-				new File("Files/Assignment2/train.txt"));
+//		PrintWriter pw = new PrintWriter(
+//				new File("Files/Assignment2/train.txt"));
 		double[][] Z = new double[10 * 3][64];
+		String [] output = new String[30];
 		for (int num = 0; num < 10; ++num) {
 			for (int ind = 1; ind <= 3; ind++) {
 				cc.img = ImageHelper
@@ -234,75 +208,79 @@ public class EnhancedChainCode {
 				for (int i = 0; i < fv.length; i++) {
 					Z[num * 3 + (ind - 1)][i] = fv[i];
 				}
+				output[num * 3 + (ind - 1)] = num+"";
 				System.out.println("Successfuly calculated fv of " + num + "/"
 						+ ind);
 			}
 		}
+		Classifier minSum = new MinimumSumSquareErrorClassifier();
+		minSum.trainClassifier(Z, output);
+		minSum.writeClassifier("Files/Assignment2/train_test.txt");
 
-		// Remove Invalid Columns (zero)
-		ArrayList<Integer> ValidCols = new ArrayList<Integer>();
-
-		for (int j = 0; j < Z[0].length; j++) {
-			boolean allZ = true;
-			for (int i = 0; i < Z.length; i++) {
-				if (Z[i][j] != 0)
-					allZ = false;
-			}
-			if (!allZ) {
-				ValidCols.add(j);
-			}
-		}
-
-		// Good_z is Z but without the 0 columns
-		double[][] good_z = new double[10 * 3][ValidCols.size()];
-		for (int i = 0; i < Z.length; i++) {
-			int cj = 0;
-			for (int j = 0; j < Z[i].length; j++) {
-				if (ValidCols.contains(j))
-					good_z[i][cj++] = Z[i][j];
-			}
-		}
-
-		// Write the indices of columns in the file
-		pw.print(ValidCols.size() + " ");
-		for (int i = 0; i < ValidCols.size(); i++) {
-			pw.print(ValidCols.get(i) + " ");
-		}
-		pw.println();
-
-		for (int num = 0; num < 10; ++num) {
-			// sample in lecture
-			// double [][] cur_z =
-			// {{1,1,1},{2,2,1},{3,4,1},{4,3,1},{5,5,1},{1,-1,-1},{3,3,-1},{5,4,-1},{-2,2,-1}};
-			// double [][] b = {{1},{1},{1},{1},{1},{1},{1},{1},{1}};
-
-			// cur_z is the Z but for class num
-			double[][] cur_z = new double[good_z.length][good_z[0].length + 1];
-			double[][] b = new double[good_z.length][1];
-			for (int i = 0; i < cur_z.length; i++) {
-				b[i][0] = 1;
-				for (int j = 0; j < cur_z[i].length; j++) {
-					if (j == cur_z[i].length - 1) {
-						cur_z[i][j] = (i / 3 == num ? +1 : -1); // bias term
-					} else {
-						cur_z[i][j] = good_z[i][j] * (i / 3 == num ? +1 : -1);
-					}
-				}
-			}
-			System.out.println("MATRIX OF " + num);
-			Matrix m_b = new Matrix(b);
-			Matrix m_z = new Matrix(cur_z);
-			Matrix m_zt = m_z.transpose();
-			Matrix m_z2 = m_zt.times(m_z);
-			Matrix m_res = (m_z2.inverse().times(m_zt)).times(m_b);
-			// Write label to file
-			pw.print(num + " ");
-			// Write the weights
-			for (int i = 0; i < cur_z[0].length; i++) {
-				pw.print(m_res.get(i, 0) + " ");
-			}
-			pw.println();
-		}
-		pw.close();
+//		// Remove Invalid Columns (zero)
+//		ArrayList<Integer> ValidCols = new ArrayList<Integer>();
+//
+//		for (int j = 0; j < Z[0].length; j++) {
+//			boolean allZ = true;
+//			for (int i = 0; i < Z.length; i++) {
+//				if (Z[i][j] != 0)
+//					allZ = false;
+//			}
+//			if (!allZ) {
+//				ValidCols.add(j);
+//			}
+//		}
+//
+//		// Good_z is Z but without the 0 columns
+//		double[][] good_z = new double[10 * 3][ValidCols.size()];
+//		for (int i = 0; i < Z.length; i++) {
+//			int cj = 0;
+//			for (int j = 0; j < Z[i].length; j++) {
+//				if (ValidCols.contains(j))
+//					good_z[i][cj++] = Z[i][j];
+//			}
+//		}
+//
+//		// Write the indices of columns in the file
+//		pw.print(ValidCols.size() + " ");
+//		for (int i = 0; i < ValidCols.size(); i++) {
+//			pw.print(ValidCols.get(i) + " ");
+//		}
+//		pw.println();
+//
+//		for (int num = 0; num < 10; ++num) {
+//			// sample in lecture
+//			// double [][] cur_z =
+//			// {{1,1,1},{2,2,1},{3,4,1},{4,3,1},{5,5,1},{1,-1,-1},{3,3,-1},{5,4,-1},{-2,2,-1}};
+//			// double [][] b = {{1},{1},{1},{1},{1},{1},{1},{1},{1}};
+//
+//			// cur_z is the Z but for class num
+//			double[][] cur_z = new double[good_z.length][good_z[0].length + 1];
+//			double[][] b = new double[good_z.length][1];
+//			for (int i = 0; i < cur_z.length; i++) {
+//				b[i][0] = 1;
+//				for (int j = 0; j < cur_z[i].length; j++) {
+//					if (j == cur_z[i].length - 1) {
+//						cur_z[i][j] = (i / 3 == num ? +1 : -1); // bias term
+//					} else {
+//						cur_z[i][j] = good_z[i][j] * (i / 3 == num ? +1 : -1);
+//					}
+//				}
+//			}
+//			System.out.println("MATRIX OF " + num);
+//			Matrix m_b = new Matrix(b);
+//			Matrix m_z = new Matrix(cur_z);
+//			Matrix m_zt = m_z.transpose();
+//			Matrix m_z2 = m_zt.times(m_z);
+//			Matrix m_res = (m_z2.inverse().times(m_zt)).times(m_b);
+//			// Write label to file
+//			pw.print(num + " ");
+//			// Write the weights
+//			for (int i = 0; i < cur_z[0].length; i++) {
+//				pw.print(m_res.get(i, 0) + " ");
+//			}
+//			pw.println();
+//		}
+//		pw.close();
 	}
 }
